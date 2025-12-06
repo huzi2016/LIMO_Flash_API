@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from  openai import OpenAI, RateLimitError
 import httpx
-from transformers import pipeline
+#try with light weight ML model, exclude transformers if not necessary
+#from transformers import pipeline
 
 
 logging.basicConfig(level=logging.INFO)
@@ -44,11 +45,13 @@ class UserInput(BaseModel):
     text: str
 
 #OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-emotion_classifier = pipeline(
-    "text-classification",
-    model="j-hartmann/emotion-english-distilroberta-base",
-    return_all_scores=True
-)
+##try with light weight ML model, exclude transformers if not necessary
+#  emotion_classifier = pipeline(
+#     "text-classification",
+#     model="j-hartmann/emotion-english-distilroberta-base",
+#     return_all_scores=True
+# )
+#try with light weight ML model, exclude transformers if not necessary
 
 
 def call_oepnai_with_retry(messages, max_retries=3, backoff_factor=2):
@@ -96,34 +99,78 @@ def call_oepnai_with_retry(messages, max_retries=3, backoff_factor=2):
 #     logging.info(f"Generated SQL query: {reply}")
 #     return {"sql_query": reply}
 
+#try with light weight ML model, exclude transformers if not necessary
+# @app.post("/chat")
+# async def chat(user_input: UserInput):
+#     text = user_input.text.strip().lower()
+
+#     # 危机检测
+#     if any(word in text for word in CRISIS_KEYWORDS):
+#         return {"emotion": "crisis", "reply": CRISIS_MESSAGE}
+
+#     # 情绪分析
+#     emotions = emotion_classifier(user_input.text)[0]
+#     top_emotion = max(emotions, key=lambda x: x['score'])['label']
+
+#     # 调用 OpenAI 生成心理陪伴回复
+#     response = call_oepnai_with_retry([
+#         {"role": "system", "content": SYSTEM_PROMPT},
+#         {"role": "user", "content": f"{user_input.text}\n\n用户当前情绪可能是：{top_emotion}"}
+#     ])
+
+#     reply = getattr(response.choices[0].message, "content", "").strip()
+#     if not reply:
+#         reply = "抱歉，我暂时无法生成回复。"
+
+#     logging.info(f"Emotion: {top_emotion}, Reply: {reply}")
+#     return {"emotion": top_emotion, "reply": reply}
+#try with light weight ML model, exclude transformers if not necessary
+# -----------------------------
+# GET /
+# -----------------------------
+
+# -----------------------------
+# POST /chat Endpoint
+# -----------------------------
 @app.post("/chat")
 async def chat(user_input: UserInput):
     text = user_input.text.strip().lower()
 
-    # 危机检测
+    # Crisis detection
     if any(word in text for word in CRISIS_KEYWORDS):
         return {"emotion": "crisis", "reply": CRISIS_MESSAGE}
 
-    # 情绪分析
-    emotions = emotion_classifier(user_input.text)[0]
-    top_emotion = max(emotions, key=lambda x: x['score'])['label']
+    # Use OpenAI GPT to analyze emotion and generate reply
+    prompt = f"""
+用户输入文本：
+{text}
 
-    # 调用 OpenAI 生成心理陪伴回复
+请帮忙：
+1. 简单分析用户当前情绪（用英语或中文回答一个词，如 happy, sad, anxious 等）。
+2. 提供温柔心理陪伴回复。
+请输出 JSON：
+{{"emotion": "情绪标签", "reply": "温柔的心理陪伴回复"}}
+"""
+
     response = call_oepnai_with_retry([
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"{user_input.text}\n\n用户当前情绪可能是：{top_emotion}"}
+        {"role": "user", "content": prompt}
     ])
 
-    reply = getattr(response.choices[0].message, "content", "").strip()
-    if not reply:
-        reply = "抱歉，我暂时无法生成回复。"
+    try:
+        content = getattr(response.choices[0].message, "content", "").strip()
+        import json
+        data = json.loads(content)
+    except Exception as e:
+        logging.error(f"Failed to parse OpenAI response: {e}")
+        data = {"emotion": "unknown", "reply": "抱歉，我暂时无法生成回复。"}
 
-    logging.info(f"Emotion: {top_emotion}, Reply: {reply}")
-    return {"emotion": top_emotion, "reply": reply}
+    return data
 
 # -----------------------------
-# GET /
+# GET / Endpoint
 # -----------------------------
+
 @app.get("/")
 async def home():
     return {"message": "API is running. Use POST /chat with JSON {'prompt': 'your text'}"}
