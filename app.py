@@ -1,6 +1,7 @@
 import os
 import logging
-import time 
+import time
+import touch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -29,7 +30,6 @@ SYSTEM_PROMPT = """
 """
 
 CRISIS_KEYWORDS = ["suicide", "自杀", "kill myself", "end my life", "自残"]
-
 CRISIS_MESSAGE = (
     "我注意到你可能有严重的情绪危机，请立即联系专业机构寻求帮助：\n"
     "德国热线: TelefonSeelsorge 0800 111 0 111\n"
